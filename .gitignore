@@ -1,0 +1,6 @@
+SourceCode/.devcontainer/devcontainer.json
+SourceCode/.devcontainer/Dockerfile
+SourceCode/.vscode/c_cpp_properties.json
+SourceCode/.vscode/launch.json
+SourceCode/.vscode/settings.json
+SourceCode/.vscode/tasks.json

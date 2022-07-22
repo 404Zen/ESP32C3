@@ -1,0 +1,9 @@
+idf_component_register(SRCS "weather.c"
+                    INCLUDE_DIRS "include"
+                    PRIV_REQUIRES app_smartconfig
+                    PRIV_REQUIRES nvs_flash
+                    PRIV_REQUIRES mbedtls
+                    PRIV_REQUIRES zlib
+                    PRIV_REQUIRES https_client
+                    PRIV_REQUIRES board_define
+                    PRIV_REQUIRES json)

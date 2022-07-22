@@ -130,7 +130,6 @@ void app_sntp_init(void)
             vTaskDelay(2000 / portTICK_PERIOD_MS);
         }
     }
-
     // const int deep_sleep_sec = 10;
     // ESP_LOGI(TAG, "Entering deep sleep for %d seconds", deep_sleep_sec);
     // esp_deep_sleep(1000000LL * deep_sleep_sec);

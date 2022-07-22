@@ -689,7 +689,7 @@ static void home_page(void)
     lv_obj_set_style_text_font(weather_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(weather_label, lv_color_white(), 0);
     lv_obj_set_style_text_opa(weather_label, LV_OPA_50, 0);
-    lv_label_set_text(weather_label, "25°C / Sunny");
+    lv_label_set_text(weather_label, "25°C");
     lv_obj_set_pos(weather_label, 10, 10);
 
     lv_obj_t *text = lv_label_create(wireless_tab);

@@ -42,7 +42,11 @@ void weather_init(void);
 // int get_weather_data(char *data, size_t *data_len);
 void response_data_process(char *data, size_t len);
 void get_weather_data(weather_data_t *data);
+int set_weather_key(char *key);
+int get_weather_key(char *key);
 
+int set_weather_parameter(char *location_id, char *key);
+int get_weather_parameter(char *location_id, char *key);
 
 #endif /* __WEATHER_H__ */
 /*********************************END OF FILE**********************************/

@@ -16,6 +16,7 @@
 #include "ledc_fade.h"
 #include "app_smartconfig.h"
 #include "app_sntp.h"
+#include "app_console.h"
 #include "weather.h"
 
 
@@ -30,7 +31,7 @@ void app_main(void)
     lcd_display_init();
     ledc_fade_init();
     app_sc_wifi_start();
-
+    app_console_init();
     app_sntp_init();
     weather_init();
 }

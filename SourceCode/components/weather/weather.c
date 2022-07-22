@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "freertos/timers.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -48,12 +50,22 @@
 #define WEB_PORT WEATHER_SERVER_PORT
 #define WEB_URL WEATHER_SERVER_URL
 
-/* Private typedef -----------------------------------------------------------*/
+#define WEATHER_LOCATION_ID_MAX_LEN 12
+#define WEATHER_KEY_MAX_LEN 64
+#define WEATHER_URL_MAX_LEN 256 /* 目前是 107 */
+#define WEATHER_NVS_NAMESPACE "weather_data"
+#define WEATHER_KEY_LOCATION_ID "weather_lid"
+#define WEATHER_KEY_KEY "weather_key"
 
+char weather_url[WEATHER_URL_MAX_LEN];
+/* Private typedef -----------------------------------------------------------*/
+#define WEATHER_EVT_REFRESH (1 << 0)
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
 weather_data_t g_weather;
+EventGroupHandle_t weather_evt_group;
+TimerHandle_t weather_timer;
 
 /* Private function prototypes -----------------------------------------------*/
 static void weather_refresh_task(void *arg);
@@ -62,6 +74,8 @@ static int weather_response_decode(void *in_buf, size_t in_size, void *out_buf, 
 static int network_gzip_decompress(void *in_buf, size_t in_size, void *out_buf, size_t *out_size, size_t out_buf_size);
 
 static void set_weather_data(weather_data_t *data);
+
+static void weather_timer_cb(TimerHandle_t timer);
 /* User code -----------------------------------------------------------------*/
 /**
  * @brief  weather_init
@@ -71,6 +85,8 @@ static void set_weather_data(weather_data_t *data);
  */
 void weather_init(void)
 {
+    char w_lid[WEATHER_LOCATION_ID_MAX_LEN];
+    char w_key[WEATHER_KEY_MAX_LEN];
     ESP_LOGI(TAG, "%s", __func__);
 
     while (is_connect_to_ap() == false)
@@ -78,7 +94,47 @@ void weather_init(void)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 
-    xTaskCreate(weather_refresh_task, "weather_task", 8192, NULL, 5, NULL);
+    memset(w_key, 0, WEATHER_KEY_MAX_LEN);
+    memset(w_lid, 0, WEATHER_LOCATION_ID_MAX_LEN);
+
+    if(get_weather_parameter(w_lid, w_key) != 0)
+    {
+        ESP_LOGE(TAG, "weather parameters is not set!");
+    }
+    else
+    {
+        /* Create weather application */
+        sprintf(weather_url, "%s&location=%s&key=%s", WEB_URL, w_lid, w_key);
+        ESP_LOGI(TAG, "Weather url %s", weather_url);
+
+        weather_evt_group = xEventGroupCreate();
+        if (weather_evt_group == NULL)
+        {
+            ESP_LOGI(TAG, "Weather event group create fail... will not start weather application");
+        }
+        else
+        {
+            weather_timer = xTimerCreate("xTimerCreate", pdMS_TO_TICKS(1000 * WEATHER_REFRESH_TIME), pdTRUE, NULL, weather_timer_cb);
+            // weather_timer = xTimerCreate("xTimerCreate", pdMS_TO_TICKS(1000*10), pdTRUE, NULL, weather_timer_cb);
+            if (weather_timer != NULL)
+            {
+                if (xTimerStart(weather_timer, 0) != pdPASS)
+                {
+                    ESP_LOGI(TAG, "Weather task timer create fail... will not start weather application");
+                }
+                else
+                {
+                    xTaskCreate(weather_refresh_task, "weather_task", 8192, NULL, 5, NULL);
+                    vTaskDelay(pdTICKS_TO_MS(100));
+                    xEventGroupSetBits(weather_evt_group, WEATHER_EVT_REFRESH);
+                }
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Weather task timer create fail... will not start weather application");
+            }
+        }
+    }
 }
 
 /**
@@ -89,6 +145,7 @@ void weather_init(void)
  */
 static void weather_refresh_task(void *arg)
 {
+    EventBits_t ux_bits;
     static unsigned char req_buf[1024];
     static size_t req_buf_len = 1024;
 
@@ -97,55 +154,56 @@ static void weather_refresh_task(void *arg)
 
     while (1)
     {
-        memset(req_buf, 0, sizeof(req_buf));
-        req_buf_len = 1024;         /* must */
-        memset(decode_buf, 0, sizeof(decode_buf));
-        decode_len = 0;
-        https_get_request(WEB_SERVER, WEB_PORT, WEB_URL, req_buf, &req_buf_len);
-        weather_response_decode(req_buf, req_buf_len, decode_buf, &decode_len, decode_buf_len);
-        #if 0
+        ux_bits = xEventGroupWaitBits(weather_evt_group, WEATHER_EVT_REFRESH, pdTRUE, pdFALSE, portMAX_DELAY);
+
+        if ((ux_bits & WEATHER_EVT_REFRESH) == WEATHER_EVT_REFRESH)
+        {
+            memset(req_buf, 0, sizeof(req_buf));
+            req_buf_len = 1024; /* must */
+            memset(decode_buf, 0, sizeof(decode_buf));
+            decode_len = 0;
+            https_get_request(WEB_SERVER, WEB_PORT, weather_url, req_buf, &req_buf_len);
+            weather_response_decode(req_buf, req_buf_len, decode_buf, &decode_len, decode_buf_len);
+#if 0
         for (size_t i = 0; i < decode_len; i++)
         {
             printf("%c", decode_buf[i]);
         }
         printf("\r\n");
-        #endif
+#endif
 
-        cJSON *root = cJSON_Parse(decode_buf);
-        if(root != NULL)
-        {
-            ESP_LOGI(TAG, "json parse ok !");
-
-            cJSON *weather = cJSON_GetObjectItem(root, "now");
-            if(weather != NULL)
+            cJSON *root = cJSON_Parse(decode_buf);
+            if (root != NULL)
             {
-                cJSON *temp = cJSON_GetObjectItem(weather, "temp");
-                cJSON *text = cJSON_GetObjectItem(weather, "text");
+                ESP_LOGI(TAG, "json parse ok !");
 
-                weather_data_t data;
-                sprintf(data.temp, "%s", temp->valuestring);
-                sprintf(data.text, "%s", text->valuestring);
-                set_weather_data(&data);
-                ESP_LOGI(TAG, "weather is %s. %s", temp->valuestring, text->valuestring);
+                cJSON *weather = cJSON_GetObjectItem(root, "now");
+                if (weather != NULL)
+                {
+                    cJSON *temp = cJSON_GetObjectItem(weather, "temp");
+                    cJSON *text = cJSON_GetObjectItem(weather, "text");
+
+                    weather_data_t data;
+                    sprintf(data.temp, "%s", temp->valuestring);
+                    sprintf(data.text, "%s", text->valuestring);
+                    set_weather_data(&data);
+                    ESP_LOGI(TAG, "weather is %s. %s", temp->valuestring, text->valuestring);
+                }
             }
-        }
-        cJSON_Delete(root);
+            cJSON_Delete(root);
 
+            char *text = strstr(decode_buf, "text") + strlen("text");
+            printf("is ... %d\r\n", text);
 
-        // char *text = strcasestr(decode_buf, "\"text\":");
-        char *text = strstr(decode_buf, "text") + strlen("text");
-        printf("is ... %d\r\n", text);
-
-        // printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-        printf("Minimum/free heap size: %d bytes / %d bytes\n", esp_get_minimum_free_heap_size(), esp_get_free_heap_size());
-        /* 5分钟后再获取一次 */
-        for (int countdown = WEATHER_REFRESH_TIME; countdown >= 0; countdown--)
-        // for (int countdown = 30; countdown >= 0; countdown--)
-        {
-            // ESP_LOGI(TAG, "%d...", countdown);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            printf("Minimum/free heap size: %d bytes / %d bytes\n", esp_get_minimum_free_heap_size(), esp_get_free_heap_size());
         }
     }
+}
+
+static void weather_timer_cb(TimerHandle_t timer)
+{
+    ESP_LOGI(TAG, "%s", __func__);
+    xEventGroupSetBits(weather_evt_group, WEATHER_EVT_REFRESH);
 }
 
 static void set_weather_data(weather_data_t *data)
@@ -326,13 +384,13 @@ static int weather_response_decode(void *in_buf, size_t in_size, void *out_buf, 
 
         memcpy(out_buf, resp_body, resp_length);
         *out_size = resp_length;
-        #if 0
+#if 0
         for (size_t i = 0; i < in_size; i++)
         {
             putchar(*((char *)(resp_body + i)));
         }
         printf("\r\n");
-        #endif
+#endif
         // out_size = resp_length;
     }
 
@@ -377,5 +435,109 @@ static int network_gzip_decompress(void *in_buf, size_t in_size, void *out_buf, 
 
     return Z_OK;
 }
+
+/**
+ * @brief  set_weather_parameter
+ * @note   Set weather parameters to NVS.
+ * @param  None.
+ * @retval None.
+**/
+int set_weather_parameter(char *location_id, char *key)
+{
+    esp_err_t err;
+    nvs_handle_t nvs_handler;
+    size_t key_len = strlen(key);
+    size_t id_len = strlen(location_id);
+
+    if (key_len > WEATHER_KEY_MAX_LEN || id_len > WEATHER_LOCATION_ID_MAX_LEN)
+    {
+        return -2;
+    }
+
+
+    err = nvs_open(WEATHER_NVS_NAMESPACE, NVS_READWRITE, &nvs_handler);
+    if (err != ESP_OK)
+    {
+        ESP_LOGI(TAG, "Open nvs namespace fail.");
+        return -1;
+    }
+    else
+    {
+        err = nvs_set_blob(nvs_handler, WEATHER_KEY_LOCATION_ID, location_id, id_len);
+        if (err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Write weather location id to nvs fail; %s.", esp_err_to_name(err));
+            ESP_ERROR_CHECK(nvs_commit(nvs_handler)); /* 提交NVS数据 */
+            nvs_close(nvs_handler);
+
+            return -1;
+        }
+
+        err = nvs_set_blob(nvs_handler, WEATHER_KEY_KEY, key, key_len);
+        if (err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Write weather key to nvs fail; %s.", esp_err_to_name(err));
+            ESP_ERROR_CHECK(nvs_commit(nvs_handler)); /* 提交NVS数据 */
+            nvs_close(nvs_handler);
+
+            return -1;
+        }
+    }
+
+    ESP_ERROR_CHECK(nvs_commit(nvs_handler)); /* 提交NVS数据 */
+    nvs_close(nvs_handler);
+
+    /* set to ram */
+    sprintf(weather_url, "%s&location=%s&key=%s", WEB_URL, location_id, key);
+    ESP_LOGI(TAG, "Weather key update %s", weather_url);
+    xEventGroupSetBits(weather_evt_group, WEATHER_EVT_REFRESH);
+
+    return 0;
+}
+
+/**
+ * @brief  get_weather_parameter
+ * @note   get weather parameters from NVS.
+ * @param  None.
+ * @retval None.
+**/
+int get_weather_parameter(char *location_id, char *key)
+{
+    esp_err_t err;
+    size_t key_len = WEATHER_KEY_MAX_LEN;
+    size_t id_len = WEATHER_LOCATION_ID_MAX_LEN;
+    nvs_handle_t nvs_handler;
+
+    err = nvs_open(WEATHER_NVS_NAMESPACE, NVS_READWRITE, &nvs_handler);
+    if (err != ESP_OK)
+    {
+        ESP_LOGI(TAG, "Open nvs namespace fail.");
+        return -1;
+    }
+    else
+    {
+        err = nvs_get_blob(nvs_handler, WEATHER_KEY_LOCATION_ID, location_id, &id_len);
+        if (err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "NVS get weather location id fail; %s.", esp_err_to_name(err));
+            nvs_close(nvs_handler);
+
+            return -1;
+        }
+
+        err = nvs_get_blob(nvs_handler, WEATHER_KEY_KEY, key, &key_len);
+        if (err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "NVS get weather key fail; %s.", esp_err_to_name(err));
+            nvs_close(nvs_handler);
+
+            return -1;
+        }
+    }
+
+    nvs_close(nvs_handler);
+    return 0;
+}
+
 
 /*********************************END OF FILE**********************************/

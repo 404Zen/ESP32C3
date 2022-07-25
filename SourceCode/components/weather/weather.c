@@ -101,40 +101,30 @@ void weather_init(void)
     {
         ESP_LOGE(TAG, "weather parameters is not set!");
     }
-    else
-    {
-        /* Create weather application */
-        sprintf(weather_url, "%s&location=%s&key=%s", WEB_URL, w_lid, w_key);
-        ESP_LOGI(TAG, "Weather url %s", weather_url);
 
-        weather_evt_group = xEventGroupCreate();
-        if (weather_evt_group == NULL)
-        {
-            ESP_LOGI(TAG, "Weather event group create fail... will not start weather application");
-        }
-        else
-        {
-            weather_timer = xTimerCreate("xTimerCreate", pdMS_TO_TICKS(1000 * WEATHER_REFRESH_TIME), pdTRUE, NULL, weather_timer_cb);
-            // weather_timer = xTimerCreate("xTimerCreate", pdMS_TO_TICKS(1000*10), pdTRUE, NULL, weather_timer_cb);
-            if (weather_timer != NULL)
-            {
-                if (xTimerStart(weather_timer, 0) != pdPASS)
-                {
-                    ESP_LOGI(TAG, "Weather task timer create fail... will not start weather application");
-                }
-                else
-                {
-                    xTaskCreate(weather_refresh_task, "weather_task", 8192, NULL, 5, NULL);
-                    vTaskDelay(pdTICKS_TO_MS(100));
-                    xEventGroupSetBits(weather_evt_group, WEATHER_EVT_REFRESH);
-                }
-            }
-            else
-            {
-                ESP_LOGI(TAG, "Weather task timer create fail... will not start weather application");
-            }
-        }
+    /* Create weather application */
+    sprintf(weather_url, "%s&location=%s&key=%s", WEB_URL, w_lid, w_key);
+    ESP_LOGI(TAG, "Weather url %s", weather_url);
+    weather_evt_group = xEventGroupCreate();
+    if (weather_evt_group == NULL)
+    {
+        ESP_LOGE(TAG, "Weather event group create fail... will not start weather application");
     }
+
+    weather_timer = xTimerCreate("xTimerCreate", pdMS_TO_TICKS(1000 * WEATHER_REFRESH_TIME), pdTRUE, NULL, weather_timer_cb);
+    if (weather_timer == NULL)
+    {
+        ESP_LOGI(TAG, "Weather task timer create fail...");
+    }
+
+    if (xTimerStart(weather_timer, 0) != pdPASS)
+    {
+        ESP_LOGI(TAG, "Weather task timer create fail... will not start weather application");
+    }
+
+    xTaskCreate(weather_refresh_task, "weather_task", 8192, NULL, 5, NULL);
+    vTaskDelay(pdTICKS_TO_MS(100));
+    xEventGroupSetBits(weather_evt_group, WEATHER_EVT_REFRESH);
 }
 
 /**

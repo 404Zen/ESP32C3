@@ -2,9 +2,10 @@
 
 ## 更新说明
 
-| 版本号 | 说明       | 备注 |
-| ------ | ---------- | ---- |
-| 0.0.1  | 1.初始版本 |      |
+| 版本号 | 说明             | 备注 |
+| ------ | ---------------- | ---- |
+| 0.0.2  | 1.Fix bug #3、#4 |      |
+| 0.0.1  | 1.初始版本       |      |
 
 
 
@@ -20,7 +21,8 @@
 
 3. 使用控制台输入 location_id 和 key
 
-   `weather_param location_id key`
+   `weather_param location_id key_xxxxxxxxxxxxxxxxxxxx`
+   这个命令参数比较长，可以在外部编辑器编辑完成后一次性粘贴进去。
 
 
 
@@ -44,10 +46,11 @@ ESP32C3的GPIO11(VDD_SPI)默认功能是给flash供电，这个开发板（能�
 
 ## bug list
 
-- https在读取response的时候，极小概率会出不来读数据的while循环，导致后面无法获取到新的天气数据。可能与网络环境有关，需要添加超时异常处理，未处理。
+- #1.https在读取response的时候，极小概率会出不来读数据的while循环，导致后面无法获取到新的天气数据。可能与网络环境有关，需要添加超时异常处理，未处理。ret = 0xFFFFFFB0.
 
-  ret = 0xFFFFFFB0.
+- #2.console初始化可能导致wifi相关的功能异常，如无法连接到网络，smartconfig失效等。可能与当前网络环境有关，未复现。
 
-  
+- #3.新设备通过 console 首次写入weather parameters 会导致重启，但是数据会保存到flash中，重启后可以正常使用...(原因是新设备在没有读取到参数时不会创建对应的事件组和任务，导致 assert failed. 待修复)。
 
-- console初始化可能导致wifi相关的功能异常，如无法连接到网络，smartconfig失效等。可能与当前网络环境有关，未复现。
+- #4.新设备配网完成后，没有进行对时.(smartconfig任务在会清除事件标志。)
+

@@ -53,10 +53,7 @@
 #define WEATHER_REFRESH_TIME            300                 /* 单位为秒， 建议每300秒刷新一次即可 */
 #define WEATHER_SERVER                  "devapi.qweather.com"
 #define WEATHER_SERVER_PORT             "443"
-/* 此key会在不久的将来失效，请自行到和风天气申请key */
-// #define WEATHER_SERVER_URL              "https://devapi.qweather.com/v7/weather/now?location=101280604&lang=en&key=b014814098a34e18ae2dd039cb484992"
-// #define WEATHER_SERVER_URL              "https://devapi.qweather.com/v7/weather/now?location=101280604&lang=en&key="
-#define WEATHER_SERVER_URL                  "https://devapi.qweather.com/v7/weather/now?lang=en"
+#define WEATHER_SERVER_URL              "https://devapi.qweather.com/v7/weather/now?lang=en"
 
 #endif /* __BOARD_DEFINE_H__ */
 /*********************************END OF FILE**********************************/

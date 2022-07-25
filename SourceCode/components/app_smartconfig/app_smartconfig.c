@@ -226,11 +226,12 @@ static void smartconfig_example_task(void *parm)
     esp_smartconfig_start(&cfg);
     while (1)
     {
-        uxBits = xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
-        if (uxBits & CONNECTED_BIT)
-        {
-            ESP_LOGI(TAG, "WiFi Connected to ap");
-        }
+        // uxBits = xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
+        // if (uxBits & CONNECTED_BIT)
+        // {
+        //     ESP_LOGI(TAG, "WiFi Connected to ap");
+        // }
+        uxBits = xEventGroupWaitBits(s_wifi_event_group, ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
         if (uxBits & ESPTOUCH_DONE_BIT)
         {
             ESP_LOGI(TAG, "smartconfig over");

@@ -89,11 +89,6 @@ void weather_init(void)
     char w_key[WEATHER_KEY_MAX_LEN];
     ESP_LOGI(TAG, "%s", __func__);
 
-    while (is_connect_to_ap() == false)
-    {
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-
     memset(w_key, 0, WEATHER_KEY_MAX_LEN);
     memset(w_lid, 0, WEATHER_LOCATION_ID_MAX_LEN);
 
@@ -141,6 +136,11 @@ static void weather_refresh_task(void *arg)
 
     char decode_buf[1024];
     size_t decode_len = 0, decode_buf_len = 1024;
+
+    while (is_connect_to_ap() == false)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
 
     while (1)
     {

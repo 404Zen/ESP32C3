@@ -236,37 +236,10 @@ static void guiTask(void *pvParameter)
 
 static void create_demo_application(void)
 {
-#if 0
-    /* only show "Hello World" centered on the screen */
-
-    /* use a pretty small demo for monochrome displays */
-    /* Get the current screen  */
-    lv_obj_t * scr = lv_disp_get_scr_act(NULL);
-    // lv_obj_t *scr_red =  lv_obj_create(NULL);
-    // lv_disp_set_bg_color(scr, LV_COLOR_RED);
-
-    /*Create a Label on the currently active screen*/
-    lv_obj_t * label1 =  lv_label_create(scr);
-
-    /*Modify the Label's text*/
-    lv_label_set_text(label1, "Hello\nworld");
-
-    /* Align the Label to the center
-     * NULL means align on parent (which is the screen now)
-     * 0, 0 at the end means an x, y offset after alignment*/
-    lv_obj_align(label1, LV_ALIGN_CENTER, 0, 0);
-
-    // lv_scr_load(scr_red);
-
-#else
-    /* show the selected demo */
-    // lv_demo_widgets();
-    // lv_demo_keypad_encoder();
-    // lv_demo_benchmark();
-    // lv_demo_stress();
-    // user_gui_task();
     user_startup_page();
-#endif
+
+    /* Wait for system start up */
+    
 }
 
 static void lv_tick_task(void *arg)

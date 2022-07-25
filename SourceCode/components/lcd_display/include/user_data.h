@@ -1,11 +1,11 @@
 /********************************************************************************************************
-* @file     user_gui.h
+* @file     user_data.h
 * 
-* @brief    user_gui header file
+* @brief    user_data header file
 * 
-* @author   wujianping@nbdeli.com
+* @author   404Zen
 * 
-* @date     2022-07-06  
+* @date     2022-07-25  
 * 
 * @version  Ver: 0.1
 * 
@@ -15,31 +15,22 @@
 * 
 *******************************************************************************************************/
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __USER_GUI_H__
-#define __USER_GUI_H__
+#ifndef __USER_DATA_H__
+#define __USER_DATA_H__
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
-/* Private includes ----------------------------------------------------------*/
 
 /* Exported defines ----------------------------------------------------------*/
 
 /* Exported types ------------------------------------------------------------*/
 
-/* Exported constants --------------------------------------------------------*/
-
-/* Exported macro ------------------------------------------------------------*/
-
 /* Exported functions prototypes ---------------------------------------------*/
-void user_gui_task(void);
-void user_startup_page(void);
+void user_data_init(void);
 
-/*  */
-void wl_set_ssid_label(char *ssid);
-void wl_set_ip_label(char *ip);
-
-
-#endif /* __USER_GUI_H__ */
-/*********************************END OF FILE**********************************/
+#endif
+/******************************************* EOF *****************************************************/

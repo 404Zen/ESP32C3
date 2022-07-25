@@ -18,6 +18,7 @@
 #include "app_sntp.h"
 #include "app_console.h"
 #include "weather.h"
+#include "user_data.h"
 
 
 #define TAG         "MAIN"
@@ -34,4 +35,5 @@ void app_main(void)
     app_console_init();
     app_sntp_init();
     weather_init();
+    user_data_init();
 }

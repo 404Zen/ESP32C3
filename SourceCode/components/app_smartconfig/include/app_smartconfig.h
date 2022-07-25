@@ -22,11 +22,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-
+#include "esp_wifi.h"
 
 /* Exported functions prototypes ---------------------------------------------*/
 void app_sc_wifi_start(void);
 bool is_connect_to_ap(void);
+void get_ap_info(wifi_ap_record_t *ap_info);
+void get_ip_info(esp_netif_ip_info_t *ip_info);
 
 
 
